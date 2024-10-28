@@ -28,6 +28,7 @@ com\agbash\agbash1\MainSystem$13.class
 com\agbash\connection\DatabaseConnection.class
 com\agbash\agbash1\Main$7.class
 com\agbash\agbash1\MainSystem$18.class
+com\agbash\service\AlternatingRowColorRenderer.class
 com\agbash\agbash1\Main$10.class
 com\agbash\agbash1\MainSystem$6.class
 com\agbash\component\PanelLoginAndRegister.class
