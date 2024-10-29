@@ -6,6 +6,8 @@ import com.agbash.model.ModelUser;
 import com.agbash.service.AlternatingRowColorRenderer;
 import java.awt.Color;
 import java.awt.Image;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
@@ -14,13 +16,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
+import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.JTextField;
+import javax.swing.RowFilter;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 
 public class MainSystem extends javax.swing.JFrame {
 
@@ -29,18 +38,60 @@ public class MainSystem extends javax.swing.JFrame {
 
     public MainSystem(ModelUser user) {
         con = DatabaseConnection.getInstance().getConnection();
-       
 
         this.user = user;
         initComponents();
         jTable1.setDefaultRenderer(Object.class, new AlternatingRowColorRenderer());
+        initListeners();
         populateItemTable();
-            try {
-                populateStoreComboBox(); 
-            } catch (SQLException e) {
-                e.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Error loading stores: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        jTable1.setDefaultEditor(Object.class, new DefaultCellEditor(new JTextField()));
+
+        jTable1.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                if (e.getType() == TableModelEvent.UPDATE) {
+                    int row = e.getFirstRow();
+                    int column = e.getColumn();
+                    DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+
+                    // Assuming ITEMID is in the first column
+                    int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
+                    String newValue = model.getValueAt(row, column).toString(); // Get new value
+
+                    updateItemInDatabase(itemId, column, newValue);
+                }
             }
+        });
+
+        jTable1.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) { // Check for double click
+                    int row = jTable1.rowAtPoint(e.getPoint());
+                    int column = jTable1.columnAtPoint(e.getPoint());
+                    if (row >= 0 && column >= 0) {
+                        Object currentValue = jTable1.getValueAt(row, column);
+                        String newValue = JOptionPane.showInputDialog(
+                                MainSystem.this,
+                                "Enter new value for " + currentValue + ":",
+                                currentValue
+                        );
+                        if (newValue != null) { // Check if user didn't cancel
+                            // Update the table and database
+                            jTable1.setValueAt(newValue, row, column);
+                            updateItemInDatabase((Integer) jTable1.getValueAt(row, 0), column, newValue);
+                        }
+                    }
+                }
+            }
+        });
+
+        try {
+            populateStoreComboBox();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error loading stores: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
 
         try {
             Image icon = ImageIO.read(getClass().getResource("/com/agbash/icon/gw.png"));
@@ -54,8 +105,48 @@ public class MainSystem extends javax.swing.JFrame {
 
     public MainSystem() throws SQLException {
         initComponents();
+        initListeners();
         jTable1.setDefaultRenderer(Object.class, new AlternatingRowColorRenderer());
 
+        jTable1.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                if (e.getType() == TableModelEvent.UPDATE) {
+                    int row = e.getFirstRow();
+                    int column = e.getColumn();
+                    DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+
+                    // Assuming ITEMID is in the first column
+                    int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
+                    String newValue = model.getValueAt(row, column).toString(); // Get new value
+
+                    updateItemInDatabase(itemId, column, newValue);
+                }
+            }
+        });
+
+        jTable1.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) { // Check for double click
+                    int row = jTable1.rowAtPoint(e.getPoint());
+                    int column = jTable1.columnAtPoint(e.getPoint());
+                    if (row >= 0 && column >= 0) {
+                        Object currentValue = jTable1.getValueAt(row, column);
+                        String newValue = JOptionPane.showInputDialog(
+                                MainSystem.this,
+                                "Enter new value for " + currentValue + ":",
+                                currentValue
+                        );
+                        if (newValue != null) { // Check if user didn't cancel
+                            // Update the table and database
+                            jTable1.setValueAt(newValue, row, column);
+                            updateItemInDatabase((Integer) jTable1.getValueAt(row, 0), column, newValue);
+                        }
+                    }
+                }
+            }
+        });
 
         try {
             Image icon = ImageIO.read(getClass().getResource("/com/agbash/icon/gw.png"));
@@ -64,22 +155,21 @@ public class MainSystem extends javax.swing.JFrame {
             e.printStackTrace();
         }
     }
-    
-    private void chooseFileButtonActionPerformed(java.awt.event.ActionEvent evt) {                                              
-    // Create a JFileChooser instance
-    JFileChooser fileChooser = new JFileChooser();
-    fileChooser.setDialogTitle("Select a Receipt File");
 
-    // Show the open dialog
-    int result = fileChooser.showOpenDialog(this);
+    private void chooseFileButtonActionPerformed(java.awt.event.ActionEvent evt) {
+        // Create a JFileChooser instance
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Select a Receipt File");
 
-    // If a file was selected, display the file name or path
-    if (result == JFileChooser.APPROVE_OPTION) {
-        File selectedFile = fileChooser.getSelectedFile();
-        selectedFileLabel.setText(selectedFile.getName()); 
+        // Show the open dialog
+        int result = fileChooser.showOpenDialog(this);
+
+        // If a file was selected, display the file name or path
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            selectedFileLabel.setText(selectedFile.getName());
+        }
     }
-}
-
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -140,7 +230,7 @@ public class MainSystem extends javax.swing.JFrame {
         jLabel13 = new javax.swing.JLabel();
         jLabel14 = new javax.swing.JLabel();
         jPanel4 = new javax.swing.JPanel();
-        myTextField3 = new com.agbash.swing.MyTextField();
+        itmSearch = new com.agbash.swing.MyTextField();
         jButton1 = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
         jTable1 = new javax.swing.JTable();
@@ -152,6 +242,7 @@ public class MainSystem extends javax.swing.JFrame {
         getContentPane().setLayout(new javax.swing.BoxLayout(getContentPane(), javax.swing.BoxLayout.LINE_AXIS));
 
         jPanel1.setBackground(new java.awt.Color(155, 222, 208));
+        jPanel1.setPreferredSize(new java.awt.Dimension(150, 620));
 
         btTab3.setIcon(new javax.swing.ImageIcon(getClass().getResource("/com/agbash/icon/warehouse.png"))); // NOI18N
         btTab3.setText("Items");
@@ -183,29 +274,24 @@ public class MainSystem extends javax.swing.JFrame {
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(logo)
-                .addGap(0, 0, Short.MAX_VALUE))
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(btTab3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(btTab1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(btTab2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                .addContainerGap()
+                .addComponent(btTab1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addContainerGap())
+            .addComponent(logo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(btTab2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(btTab3, javax.swing.GroupLayout.DEFAULT_SIZE, 150, Short.MAX_VALUE)
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addComponent(logo, javax.swing.GroupLayout.PREFERRED_SIZE, 92, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 69, Short.MAX_VALUE)
                 .addComponent(btTab3, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGap(30, 30, 30)
                 .addComponent(btTab1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(31, 31, 31)
+                .addGap(30, 30, 30)
                 .addComponent(btTab2, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(228, Short.MAX_VALUE))
+                .addContainerGap(189, Short.MAX_VALUE))
         );
 
         getContentPane().add(jPanel1);
@@ -220,14 +306,14 @@ public class MainSystem extends javax.swing.JFrame {
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addGap(114, 114, 114)
                 .addComponent(myTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 261, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(575, Short.MAX_VALUE))
+                .addContainerGap(708, Short.MAX_VALUE))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addGap(79, 79, 79)
                 .addComponent(myTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(429, Short.MAX_VALUE))
+                .addContainerGap(458, Short.MAX_VALUE))
         );
 
         jTabbedPane.addTab("tab2", jPanel3);
@@ -433,7 +519,7 @@ public class MainSystem extends javax.swing.JFrame {
                             .addComponent(jLabel4, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(myTextField10, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 172, Short.MAX_VALUE)
+                            .addComponent(myTextField10, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 239, Short.MAX_VALUE)
                             .addComponent(myTextField4, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(myTextField7, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(myTextField9, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -508,7 +594,7 @@ public class MainSystem extends javax.swing.JFrame {
                                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                             .addComponent(itmReceiptBarcode, javax.swing.GroupLayout.PREFERRED_SIZE, 211, javax.swing.GroupLayout.PREFERRED_SIZE)
                                             .addComponent(itmTotalAmountForSale, javax.swing.GroupLayout.PREFERRED_SIZE, 210, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                                .addContainerGap(46, Short.MAX_VALUE))))))
+                                .addContainerGap(112, Short.MAX_VALUE))))))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -607,13 +693,23 @@ public class MainSystem extends javax.swing.JFrame {
 
         jTabbedPane.addTab("Save Items", jPanel2);
 
-        myTextField3.setHorizontalAlignment(javax.swing.JTextField.CENTER);
-        myTextField3.setText("Insert Item Barcode");
+        itmSearch.setHorizontalAlignment(javax.swing.JTextField.CENTER);
+        itmSearch.setText("Insert Item Barcode");
+        itmSearch.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                searchActionPerformed(evt);
+            }
+        });
 
         jButton1.setBackground(new java.awt.Color(224, 255, 242));
         jButton1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/com/agbash/icon/search.png"))); // NOI18N
         jButton1.setBorder(new javax.swing.border.MatteBorder(null));
         jButton1.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
 
         jTable1.setBackground(new java.awt.Color(238, 184, 80));
         jTable1.setModel(new javax.swing.table.DefaultTableModel(
@@ -624,6 +720,11 @@ public class MainSystem extends javax.swing.JFrame {
                 "ITEMID", "ITEM_BARCODE", "ITEM_NAME", "BOUGHT_PRICE", "SELL_PRICE", "SHELF_LOCATION", "WEIGHT", "SIZE", "BOUGHT_FROM_STORE", "SOLD_FOR"
             }
         ));
+        jTable1.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                updateField(evt);
+            }
+        });
         jScrollPane1.setViewportView(jTable1);
         if (jTable1.getColumnModel().getColumnCount() > 0) {
             jTable1.getColumnModel().getColumn(1).setPreferredWidth(80);
@@ -655,19 +756,18 @@ public class MainSystem extends javax.swing.JFrame {
         jPanel4.setLayout(jPanel4Layout);
         jPanel4Layout.setHorizontalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel4Layout.createSequentialGroup()
-                .addGap(105, 105, 105)
-                .addComponent(btnUpdate, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(btnDelete, javax.swing.GroupLayout.PREFERRED_SIZE, 233, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 116, Short.MAX_VALUE)
-                .addComponent(myTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, 175, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel4Layout.createSequentialGroup()
+                        .addGap(105, 105, 105)
+                        .addComponent(btnUpdate, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnDelete, javax.swing.GroupLayout.PREFERRED_SIZE, 233, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 249, Short.MAX_VALUE)
+                        .addComponent(itmSearch, javax.swing.GroupLayout.PREFERRED_SIZE, 175, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jScrollPane1))
                 .addGap(0, 0, 0)
                 .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 59, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 890, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(29, 29, 29))
         );
         jPanel4Layout.setVerticalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -676,11 +776,11 @@ public class MainSystem extends javax.swing.JFrame {
                     .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(btnUpdate, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addComponent(btnDelete, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(myTextField3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(itmSearch, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 46, Short.MAX_VALUE)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(26, 26, 26))
+                .addGap(18, 18, 18)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 160, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
         );
 
         jTabbedPane.addTab("All Items", jPanel4);
@@ -766,21 +866,21 @@ public class MainSystem extends javax.swing.JFrame {
         try {
             boughtPrice = itmBoughtPrice.getText().trim();
         } catch (Exception e) {
-            System.out.println("FATAL with boughtPrice \n"+e);
+            System.out.println("FATAL with boughtPrice \n" + e);
         }
         try {
             sellForPrice = itmProfit.getText().trim();
-            System.out.println("sellForPrice "+sellForPrice);
+            System.out.println("sellForPrice " + sellForPrice);
         } catch (Exception e) {
             System.out.println("FATAL with sellForPrice ");
         }
         try {
-           shippingCost = itmShipingCost.getText().trim(); 
+            shippingCost = itmShipingCost.getText().trim();
         } catch (Exception e) {
             System.out.println("FATAL with shippingCost ");
         }
-        
-        total = Double.parseDouble(boughtPrice) 
+
+        total = Double.parseDouble(boughtPrice)
                 + Double.parseDouble(sellForPrice)
                 + Double.parseDouble(shippingCost);
         String totalValue = String.format("%.2f", total);
@@ -793,11 +893,24 @@ public class MainSystem extends javax.swing.JFrame {
 
     private void btnUpdateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnUpdateActionPerformed
         this.updateItem(evt);
+        this.populateTableAfterNewItemInsertion(evt);
     }//GEN-LAST:event_btnUpdateActionPerformed
 
     private void btnDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDeleteActionPerformed
         this.deleteItem(evt);
     }//GEN-LAST:event_btnDeleteActionPerformed
+
+    private void searchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchActionPerformed
+        this.searchItem();
+    }//GEN-LAST:event_searchActionPerformed
+
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        this.searchItem();
+    }//GEN-LAST:event_jButton1ActionPerformed
+
+    private void updateField(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_updateField
+        // TODO add your handling code here:
+    }//GEN-LAST:event_updateField
 
     public static void main(ModelUser user) {
         java.awt.EventQueue.invokeLater(new Runnable() {
@@ -822,6 +935,7 @@ public class MainSystem extends javax.swing.JFrame {
     private javax.swing.JTextField itmProfit;
     private javax.swing.JTextField itmReceiptBarcode;
     private com.agbash.swing.ButtonOutLine itmSave;
+    private com.agbash.swing.MyTextField itmSearch;
     private javax.swing.JTextField itmShelf;
     private javax.swing.JTextField itmShipingCost;
     private javax.swing.JTextField itmSize;
@@ -861,7 +975,6 @@ public class MainSystem extends javax.swing.JFrame {
     private com.agbash.swing.MyTextField myTextField14;
     private com.agbash.swing.MyTextField myTextField15;
     private com.agbash.swing.MyTextField myTextField2;
-    private com.agbash.swing.MyTextField myTextField3;
     private com.agbash.swing.MyTextField myTextField4;
     private com.agbash.swing.MyTextField myTextField5;
     private com.agbash.swing.MyTextField myTextField6;
@@ -871,12 +984,11 @@ public class MainSystem extends javax.swing.JFrame {
     private javax.swing.JLabel selectedFileLabel;
     // End of variables declaration//GEN-END:variables
 
-    
-     private void saveItem() throws SQLException{
+    private void saveItem() throws SQLException {
 
         PreparedStatement p = null;
         String receiteBarcode, itemName, boughtPrice, sellPrice, shelf, weight, size, boughtFromStore, soldFor;
-        
+
         receiteBarcode = itmReceiptBarcode.getText().trim();
         itemName = itmName.getText().trim();
         boughtPrice = itmBoughtPrice.getText().trim();
@@ -884,13 +996,13 @@ public class MainSystem extends javax.swing.JFrame {
         shelf = itmShelf.getText().trim();
         weight = itmWeight.getText().trim();
         size = itmSize.getText().trim();
-        boughtFromStore = (String)itmStore.getSelectedItem();
+        boughtFromStore = (String) itmStore.getSelectedItem();
         soldFor = (String) itmTotalAmountForSale.getText().trim();
-        
+
         try {
             p = con.prepareStatement(
                     "INSERT INTO `item` (ITEM_BARCODE, ITEM_NAME, BOUGHT_PRICE, SELL_PRICE, SHELF_LOCATION, "
-                            + "WEIGHT, SIZE, BOUGHT_FROM_STORE, SOLD_FOR) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    + "WEIGHT, SIZE, BOUGHT_FROM_STORE, SOLD_FOR) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
 
             p.setString(1, receiteBarcode);
@@ -902,23 +1014,22 @@ public class MainSystem extends javax.swing.JFrame {
             p.setString(7, size);
             p.setString(8, size);
             p.setString(9, soldFor);
-           
 
             // Execute the insert
             int affectedRows = p.executeUpdate();
 
             if (affectedRows > 0) {
 
-                System.out.println("Successfully inserted new Item: "+itemName);
+                System.out.println("Successfully inserted new Item: " + itemName);
                 jTextField10.setText("");
-                populateStoreComboBox(); 
+                populateStoreComboBox();
 
             } else {
-                System.out.println("FATAL insertion new Item: "+itemName);
+                System.out.println("FATAL insertion new Item: " + itemName);
             }
         } catch (SQLException e) {
 
-            System.out.println("Issue with DB Connection. while inserting new Item.\n"+e);
+            System.out.println("Issue with DB Connection. while inserting new Item.\n" + e);
 
         } finally {
 
@@ -927,8 +1038,8 @@ public class MainSystem extends javax.swing.JFrame {
             }
         }
     }
-    
-    private void addStore() throws SQLException{
+
+    private void addStore() throws SQLException {
 
         PreparedStatement p = null;
         String storeName = jTextField10.getText().trim();
@@ -941,21 +1052,20 @@ public class MainSystem extends javax.swing.JFrame {
             // Set parameters for the prepared statement
             p.setString(1, storeName);
             p.setString(2, "");//inserting empty stirng for store location.
-           
 
             // Execute the insert
             int affectedRows = p.executeUpdate();
 
             if (affectedRows > 0) {
 
-                System.out.println("Successfully inserted new Store: "+storeName);
+                System.out.println("Successfully inserted new Store: " + storeName);
                 jTextField10.setText("");
-                populateStoreComboBox(); 
+                populateStoreComboBox();
                 //jComboBox1.setSelectedItem(storeName);
                 this.setSpecificStore(storeName);
 
             } else {
-                System.out.println("FATAL insertion new store: "+ storeName);
+                System.out.println("FATAL insertion new store: " + storeName);
             }
         } catch (SQLException e) {
 
@@ -968,10 +1078,10 @@ public class MainSystem extends javax.swing.JFrame {
             }
         }
     }
-    
+
     private void populateStoreComboBox() throws SQLException {
         ArrayList<String> storeNames = getStoreNames();
-        
+
         itmStore.setModel(new DefaultComboBoxModel<>(storeNames.toArray(new String[0])));
     }
 
@@ -979,8 +1089,7 @@ public class MainSystem extends javax.swing.JFrame {
         ArrayList<String> storeNames = new ArrayList<>();
 
         String query = "SELECT STORENAME FROM STORE";
-        try (Statement stmt = con.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
+        try (Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             storeNames.add("Select/Add Store...");//set first option for prompt
             System.out.println("Executing query: " + query);
             while (rs.next()) {
@@ -992,167 +1101,271 @@ public class MainSystem extends javax.swing.JFrame {
         System.out.println("Total stores retrieved: " + storeNames.size()); // Output the number of stores retrieved
         return storeNames;
     }
-    
+
     private void setSpecificStore(String storeName) {
-    DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) itmStore.getModel();
-    
-    // Check if the store exists in the model
-    if (model.getIndexOf(storeName) != -1) {
-        itmStore.setSelectedItem(storeName);
-        itmStore.revalidate();
-        itmStore.repaint();
-    } else {
-        System.out.println("Store not found: " + storeName); // Debug output
-    }
-}
+        DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) itmStore.getModel();
 
-
-public ResultSet fetchItems() throws SQLException {
-    PreparedStatement p = null;
-    ResultSet r = null;
-
-    try {
-        String query = "SELECT ITEMID, RECEIPTID, ITEM_BARCODE, ITEM_NAME, BOUGHT_PRICE, " +
-                       "SELL_PRICE, SHELF_LOCATION, WEIGHT, SIZE, BOUGHT_FROM_STORE, SOLD_FOR " +
-                       "FROM ITEM";
-        p = con.prepareStatement(query);
-        r = p.executeQuery();
-    } catch (SQLException e) {
-        System.out.println("Error fetching items: " + e.getMessage());
-    }
-    return r;
-}
-
-
-private void populateItemTable() {
-    try {
-        ResultSet rs = this.fetchItems();
-        DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-        model.setRowCount(0); // Clear any existing rows
-        while (rs.next()) {
-            model.addRow(new Object[]{
-                rs.getInt("ITEMID"),
-                rs.getInt("RECEIPTID"),
-                rs.getString("ITEM_BARCODE"),
-                rs.getString("ITEM_NAME"),
-                rs.getString("BOUGHT_PRICE"),
-                rs.getString("SELL_PRICE"),
-                rs.getString("SHELF_LOCATION"),
-                rs.getString("WEIGHT"),
-                rs.getString("SIZE"),
-                rs.getString("BOUGHT_FROM_STORE"),
-                rs.getString("SOLD_FOR")
-            });
+        // Check if the store exists in the model
+        if (model.getIndexOf(storeName) != -1) {
+            itmStore.setSelectedItem(storeName);
+            itmStore.revalidate();
+            itmStore.repaint();
+        } else {
+            System.out.println("Store not found: " + storeName); // Debug output
         }
-        rs.close();
-    } catch (SQLException e) {
-        System.out.println("Error populating item table: " + e.getMessage());
     }
-}
 
-private void updateItem(java.awt.event.ActionEvent evt) {
-    int selectedRow = jTable1.getSelectedRow();
-    
-    if (selectedRow == -1) {
-        JOptionPane.showMessageDialog(this, "Please select a row to update.", "No Selection", JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    try {
-        // Retrieve the ITEMID to identify the row in the database
-        int itemId = (Integer) jTable1.getValueAt(selectedRow, 0);  // Assuming ITEMID is the first column
+    public ResultSet fetchItems() throws SQLException {
+        PreparedStatement p = null;
+        ResultSet r = null;
 
-        // Prompt for new values for each field
-        String itemBarcode = JOptionPane.showInputDialog(this, "Enter new barcode:", jTable1.getValueAt(selectedRow, 1));
-        String itemName = JOptionPane.showInputDialog(this, "Enter new item name:", jTable1.getValueAt(selectedRow, 2));
-        String boughtPrice = JOptionPane.showInputDialog(this, "Enter new bought price:", jTable1.getValueAt(selectedRow, 3));
-        String sellPrice = JOptionPane.showInputDialog(this, "Enter new sell price:", jTable1.getValueAt(selectedRow, 4));
-        String shelfLocation = JOptionPane.showInputDialog(this, "Enter new shelf location:", jTable1.getValueAt(selectedRow, 5));
-        String weight = JOptionPane.showInputDialog(this, "Enter new weight:", jTable1.getValueAt(selectedRow, 6));
-        String size = JOptionPane.showInputDialog(this, "Enter new size:", jTable1.getValueAt(selectedRow, 7));
-        String boughtFromStore = JOptionPane.showInputDialog(this, "Enter new store:", jTable1.getValueAt(selectedRow, 8));
-        String soldFor = JOptionPane.showInputDialog(this, "Enter new sold for price:", jTable1.getValueAt(selectedRow, 9));
-
-        // Prepare the SQL update statement without RECEIPTID
-        String query = "UPDATE ITEM SET ITEM_BARCODE = ?, ITEM_NAME = ?, BOUGHT_PRICE = ?, " +
-                       "SELL_PRICE = ?, SHELF_LOCATION = ?, WEIGHT = ?, SIZE = ?, BOUGHT_FROM_STORE = ?, SOLD_FOR = ? " +
-                       "WHERE ITEMID = ?";
-
-        try (PreparedStatement p = con.prepareStatement(query)) {
-            // Set new values for each placeholder in the SQL statement
-            p.setString(1, itemBarcode);
-            p.setString(2, itemName);
-            p.setString(3, boughtPrice);
-            p.setString(4, sellPrice);
-            p.setString(5, shelfLocation);
-            p.setString(6, weight);
-            p.setString(7, size);
-            p.setString(8, boughtFromStore);
-            p.setString(9, soldFor);
-            p.setInt(10, itemId);  // Set ITEMID as the identifier for the WHERE clause
-
-            int rowsAffected = p.executeUpdate();
-
-            if (rowsAffected > 0) {
-                // Update the JTable to reflect changes
-                jTable1.setValueAt(itemBarcode, selectedRow, 1);
-                jTable1.setValueAt(itemName, selectedRow, 2);
-                jTable1.setValueAt(boughtPrice, selectedRow, 3);
-                jTable1.setValueAt(sellPrice, selectedRow, 4);
-                jTable1.setValueAt(shelfLocation, selectedRow, 5);
-                jTable1.setValueAt(weight, selectedRow, 6);
-                jTable1.setValueAt(size, selectedRow, 7);
-                jTable1.setValueAt(boughtFromStore, selectedRow, 8);
-                jTable1.setValueAt(soldFor, selectedRow, 9);
-
-                JOptionPane.showMessageDialog(this, "Row updated successfully.");
-            }
-        }
-    } catch (SQLException | NumberFormatException e) {
-        JOptionPane.showMessageDialog(this, "Error updating row: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-    }
-}
-
-
-
-private void deleteItem(java.awt.event.ActionEvent evt) {
-    int selectedRow = jTable1.getSelectedRow();
-    
-    if (selectedRow == -1) {
-        JOptionPane.showMessageDialog(this, "Please select a row to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    int itemId = (Integer) jTable1.getValueAt(selectedRow, 0);  // Assuming ITEMID is the first column
-    
-    int confirmation = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete this item?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
-    
-    if (confirmation == JOptionPane.YES_OPTION) {
         try {
-            // Delete from the database
-            String query = "DELETE FROM ITEM WHERE ITEMID = ?";
+            String query = "SELECT ITEMID, RECEIPTID, ITEM_BARCODE, ITEM_NAME, BOUGHT_PRICE, "
+                    + "SELL_PRICE, SHELF_LOCATION, WEIGHT, SIZE, BOUGHT_FROM_STORE, SOLD_FOR "
+                    + "FROM ITEM";
+            p = con.prepareStatement(query);
+            r = p.executeQuery();
+        } catch (SQLException e) {
+            System.out.println("Error fetching items: " + e.getMessage());
+        }
+        return r;
+    }
+
+    private void populateItemTable() {
+        try {
+            ResultSet rs = this.fetchItems();
+            DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+            model.setRowCount(0); // Clear any existing rows
+            while (rs.next()) {
+                model.addRow(new Object[]{
+                    rs.getInt("ITEMID"),
+                    rs.getString("ITEM_BARCODE"),
+                    rs.getString("ITEM_NAME"),
+                    rs.getString("BOUGHT_PRICE"),
+                    rs.getString("SELL_PRICE"),
+                    rs.getString("SHELF_LOCATION"),
+                    rs.getString("WEIGHT"),
+                    rs.getString("SIZE"),
+                    rs.getString("BOUGHT_FROM_STORE"),
+                    rs.getString("SOLD_FOR")
+                });
+            }
+            rs.close();
+        } catch (SQLException e) {
+            System.out.println("Error populating item table: " + e.getMessage());
+        }
+    }
+
+    private void updateItem(java.awt.event.ActionEvent evt) {
+        int selectedRow = jTable1.getSelectedRow();
+
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a row to update.", "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            // Retrieve the ITEMID to identify the row in the database
+            int itemId = (Integer) jTable1.getValueAt(selectedRow, 0);  // Assuming ITEMID is the first column
+
+            // Prompt for new values for each field
+            String itemBarcode = JOptionPane.showInputDialog(this, "Enter new barcode:", jTable1.getValueAt(selectedRow, 1));
+            String itemName = JOptionPane.showInputDialog(this, "Enter new item name:", jTable1.getValueAt(selectedRow, 2));
+            String boughtPrice = JOptionPane.showInputDialog(this, "Enter new bought price:", jTable1.getValueAt(selectedRow, 3));
+            String sellPrice = JOptionPane.showInputDialog(this, "Enter new sell price:", jTable1.getValueAt(selectedRow, 4));
+            String shelfLocation = JOptionPane.showInputDialog(this, "Enter new shelf location:", jTable1.getValueAt(selectedRow, 5));
+            String weight = JOptionPane.showInputDialog(this, "Enter new weight:", jTable1.getValueAt(selectedRow, 6));
+            String size = JOptionPane.showInputDialog(this, "Enter new size:", jTable1.getValueAt(selectedRow, 7));
+            String boughtFromStore = JOptionPane.showInputDialog(this, "Enter new store:", jTable1.getValueAt(selectedRow, 8));
+            String soldFor = JOptionPane.showInputDialog(this, "Enter new sold for price:", jTable1.getValueAt(selectedRow, 9));
+
+            // Prepare the SQL update statement without RECEIPTID
+            String query = "UPDATE ITEM SET ITEM_BARCODE = ?, ITEM_NAME = ?, BOUGHT_PRICE = ?, "
+                    + "SELL_PRICE = ?, SHELF_LOCATION = ?, WEIGHT = ?, SIZE = ?, BOUGHT_FROM_STORE = ?, SOLD_FOR = ? "
+                    + "WHERE ITEMID = ?";
+
             try (PreparedStatement p = con.prepareStatement(query)) {
-                p.setInt(1, itemId);
+                // Set new values for each placeholder in the SQL statement
+                p.setString(1, itemBarcode);
+                p.setString(2, itemName);
+                p.setString(3, boughtPrice);
+                p.setString(4, sellPrice);
+                p.setString(5, shelfLocation);
+                p.setString(6, weight);
+                p.setString(7, size);
+                p.setString(8, boughtFromStore);
+                p.setString(9, soldFor);
+                p.setInt(10, itemId);  // Set ITEMID as the identifier for the WHERE clause
+
                 int rowsAffected = p.executeUpdate();
-                
+
                 if (rowsAffected > 0) {
-                    // Remove from table model
-                    DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-                    model.removeRow(selectedRow);
-                    JOptionPane.showMessageDialog(this, "Row deleted successfully.");
+                    // Update the JTable to reflect changes
+                    jTable1.setValueAt(itemBarcode, selectedRow, 1);
+                    jTable1.setValueAt(itemName, selectedRow, 2);
+                    jTable1.setValueAt(boughtPrice, selectedRow, 3);
+                    jTable1.setValueAt(sellPrice, selectedRow, 4);
+                    jTable1.setValueAt(shelfLocation, selectedRow, 5);
+                    jTable1.setValueAt(weight, selectedRow, 6);
+                    jTable1.setValueAt(size, selectedRow, 7);
+                    jTable1.setValueAt(boughtFromStore, selectedRow, 8);
+                    jTable1.setValueAt(soldFor, selectedRow, 9);
+
+                    JOptionPane.showMessageDialog(this, "Row updated successfully.");
                 }
             }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error deleting row: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        } catch (SQLException | NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Error updating row: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-}
 
+    private void populateTableAfterNewItemInsertion(java.awt.event.ActionEvent evt) {
+        int selectedRow = jTable1.getSelectedRow();
 
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a row to update.", "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
+        // Retrieve current values from the selected row for the prompts
+        int itemId = (Integer) jTable1.getValueAt(selectedRow, 0);  // Assuming ITEMID is the first column
+        String itemBarcode = (String) jTable1.getValueAt(selectedRow, 1);
+        String itemName = (String) jTable1.getValueAt(selectedRow, 2);
+        String boughtPrice = (String) jTable1.getValueAt(selectedRow, 3);
+        String sellPrice = (String) jTable1.getValueAt(selectedRow, 4);
+        String shelfLocation = (String) jTable1.getValueAt(selectedRow, 5);
+        String weight = (String) jTable1.getValueAt(selectedRow, 6);
+        String size = (String) jTable1.getValueAt(selectedRow, 7);
+        String boughtFromStore = (String) jTable1.getValueAt(selectedRow, 8);
+        String soldFor = (String) jTable1.getValueAt(selectedRow, 9);
 
+        // Prompt user for new values
+        itemBarcode = JOptionPane.showInputDialog(this, "Enter new barcode:", itemBarcode);
+        itemName = JOptionPane.showInputDialog(this, "Enter new item name:", itemName);
+        boughtPrice = JOptionPane.showInputDialog(this, "Enter new bought price:", boughtPrice);
+        sellPrice = JOptionPane.showInputDialog(this, "Enter new sell price:", sellPrice);
+        shelfLocation = JOptionPane.showInputDialog(this, "Enter new shelf location:", shelfLocation);
+        weight = JOptionPane.showInputDialog(this, "Enter new weight:", weight);
+        size = JOptionPane.showInputDialog(this, "Enter new size:", size);
+        boughtFromStore = JOptionPane.showInputDialog(this, "Enter new store:", boughtFromStore);
+        soldFor = JOptionPane.showInputDialog(this, "Enter new sold for price:", soldFor);
 
+        // Update the database with the new values
+        //if (updateItemInDatabase(itemId, itemBarcode, itemName, boughtPrice, sellPrice, shelfLocation, weight, size, boughtFromStore, soldFor)) {
+        // Reload the table to display the updated values
+        populateItemTable();
+        JOptionPane.showMessageDialog(this, "Row updated successfully.");
+        //}
+    }
 
+    private void deleteItem(java.awt.event.ActionEvent evt) {
+        int selectedRow = jTable1.getSelectedRow();
 
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a row to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int itemId = (Integer) jTable1.getValueAt(selectedRow, 0);  // Assuming ITEMID is the first column
+
+        int confirmation = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete this item?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
+
+        if (confirmation == JOptionPane.YES_OPTION) {
+            try {
+                // Delete from the database
+                String query = "DELETE FROM ITEM WHERE ITEMID = ?";
+                try (PreparedStatement p = con.prepareStatement(query)) {
+                    p.setInt(1, itemId);
+                    int rowsAffected = p.executeUpdate();
+
+                    if (rowsAffected > 0) {
+                        // Remove from table model
+                        DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+                        model.removeRow(selectedRow);
+                        JOptionPane.showMessageDialog(this, "Row deleted successfully.");
+                    }
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error deleting row: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+    }
+
+    private void initListeners() {
+        jTabbedPane.addChangeListener(evt -> {
+            if (jTabbedPane.getSelectedIndex() == 2) {
+                populateItemTable(); // Reload table data when switching to the display tab
+            }
+        });
+    }
+
+    private void searchItem() {
+        String searchText = itmSearch.getText().trim();
+        DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
+        jTable1.setRowSorter(sorter);
+
+        if (searchText.isEmpty()) {
+            sorter.setRowFilter(null); // Show all rows if the search field is empty
+        } else {
+            // Create a list of filters
+            List<RowFilter<DefaultTableModel, Object>> filters = new ArrayList<>();
+
+            // Add regex filters for ITEM_BARCODE and ITEM_NAME
+            filters.add(RowFilter.regexFilter("(?i)" + searchText, 2)); // Filter for ITEM_BARCODE (column index 2)
+            filters.add(RowFilter.regexFilter("(?i)" + searchText, 3)); // Filter for ITEM_NAME (column index 3)
+
+            // Combine filters using orFilter
+            RowFilter<DefaultTableModel, Object> combinedFilter = RowFilter.orFilter(filters);
+            sorter.setRowFilter(combinedFilter);
+        }
+    }
+
+    private void updateItemInDatabase(int itemId, int column, String newValue) {
+        // Prepare your SQL update statement here based on the column index
+        // This is a simplified example; adjust as needed based on your table structure
+        String columnName = ""; // Determine column name based on the column index
+        switch (column) {
+            case 1:
+                columnName = "ITEM_BARCODE";
+                break;
+            case 2:
+                columnName = "ITEM_NAME";
+                break;
+            case 3:
+                columnName = "BOUGHT_PRICE";
+                break;
+            case 4:
+                columnName = "SELL_PRICE";
+                break;
+            case 5:
+                columnName = "SHELF_LOCATION";
+                break;
+            case 6:
+                columnName = "WEIGHT";
+                break;
+            case 7:
+                columnName = "SIZE";
+                break;
+            case 8:
+                columnName = "BOUGHT_FROM_STORE";
+                break;
+            case 9:
+                columnName = "SOLD_FOR";
+                break;
+        }
+
+        // Update the database using a PreparedStatement
+        String query = "UPDATE ITEM SET " + columnName + " = ? WHERE ITEMID = ?";
+        try (PreparedStatement pstmt = con.prepareStatement(query)) {
+            pstmt.setString(1, newValue); // Set the new value
+            pstmt.setInt(2, itemId); // Set the ITEMID
+            pstmt.executeUpdate(); // Execute the update
+        } catch (SQLException e) {
+            // Handle SQL exceptions here
+            e.printStackTrace();
+        }
+    }
 
 }
