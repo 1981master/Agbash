@@ -135,7 +135,7 @@ public class MainSystem extends javax.swing.JFrame {
         jTable1.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) { // Check for double click
+                if (e.getClickCount() == 2) { 
                     int row = jTable1.rowAtPoint(e.getPoint());
                     int column = jTable1.columnAtPoint(e.getPoint());
                     if (row >= 0 && column >= 0) {
