@@ -40,7 +40,8 @@ public class MainSystem extends javax.swing.JFrame {
         con = DatabaseConnection.getInstance().getConnection();
 
         this.user = user;
-        initComponents();
+        initComponents();  
+
         jTable1.setDefaultRenderer(Object.class, new AlternatingRowColorRenderer());
         initListeners();
         populateItemTable();
@@ -58,7 +59,10 @@ public class MainSystem extends javax.swing.JFrame {
                     int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
                     String newValue = model.getValueAt(row, column).toString(); // Get new value
 
-                    updateItemInDatabase(itemId, column, newValue);
+                    if(column > 1 || column <= 9){
+                        updateItemInDatabase(itemId, column, newValue);
+                    }
+                    
                 }
             }
         });
@@ -79,7 +83,10 @@ public class MainSystem extends javax.swing.JFrame {
                         if (newValue != null) { // Check if user didn't cancel
                             // Update the table and database
                             jTable1.setValueAt(newValue, row, column);
+                        if(column > 1 || column <= 9){
                             updateItemInDatabase((Integer) jTable1.getValueAt(row, 0), column, newValue);
+                        }
+                            
                         }
                     }
                 }
@@ -119,8 +126,10 @@ public class MainSystem extends javax.swing.JFrame {
                     // Assuming ITEMID is in the first column
                     int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
                     String newValue = model.getValueAt(row, column).toString(); // Get new value
-
-                    updateItemInDatabase(itemId, column, newValue);
+                    if(column > 1 || column <= 9){
+                        updateItemInDatabase(itemId, column, newValue);
+                    }
+                    
                 }
             }
         });
@@ -141,7 +150,10 @@ public class MainSystem extends javax.swing.JFrame {
                         if (newValue != null) { // Check if user didn't cancel
                             // Update the table and database
                             jTable1.setValueAt(newValue, row, column);
+                        if(column > 1 || column <= 9){
                             updateItemInDatabase((Integer) jTable1.getValueAt(row, 0), column, newValue);
+                        }
+                            
                         }
                     }
                 }
@@ -1354,6 +1366,7 @@ public class MainSystem extends javax.swing.JFrame {
             case 9:
                 columnName = "SOLD_FOR";
                 break;
+
         }
 
         // Update the database using a PreparedStatement
