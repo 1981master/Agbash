@@ -55,7 +55,6 @@ public class MainSystem extends javax.swing.JFrame {
                     int column = e.getColumn();
                     DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
 
-                    // Assuming ITEMID is in the first column
                     int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
                     String newValue = model.getValueAt(row, column).toString(); // Get new value
 
@@ -123,7 +122,6 @@ public class MainSystem extends javax.swing.JFrame {
                     int column = e.getColumn();
                     DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
 
-                    // Assuming ITEMID is in the first column
                     int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
                     String newValue = model.getValueAt(row, column).toString(); // Get new value
                     if(column > 1 || column <= 9){
