@@ -1070,7 +1070,6 @@ public class MainSystem extends javax.swing.JFrame {
                 System.out.println("Successfully inserted new Store: " + storeName);
                 jTextField10.setText("");
                 populateStoreComboBox();
-                //jComboBox1.setSelectedItem(storeName);
                 this.setSpecificStore(storeName);
 
             } else {
