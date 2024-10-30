@@ -121,7 +121,7 @@ public class MainSystem extends javax.swing.JFrame {
                     int row = e.getFirstRow();
                     int column = e.getColumn();
                     DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-
+                            
                     int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
                     String newValue = model.getValueAt(row, column).toString(); // Get new value
                     if(column > 1 || column <= 9){
@@ -1063,7 +1063,6 @@ public class MainSystem extends javax.swing.JFrame {
             p.setString(1, storeName);
             p.setString(2, "");//inserting empty stirng for store location.
 
-            // Execute the insert
             int affectedRows = p.executeUpdate();
 
             if (affectedRows > 0) {
