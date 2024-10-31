@@ -1106,7 +1106,7 @@ public class MainSystem extends javax.swing.JFrame {
             }
         }
 
-        System.out.println("Total stores retrieved: " + storeNames.size()); // Output the number of stores retrieved
+        System.out.println("Total stores retrieved: " + storeNames.size()); 
         return storeNames;
     }
 
