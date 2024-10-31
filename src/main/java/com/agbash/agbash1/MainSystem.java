@@ -1077,7 +1077,7 @@ public class MainSystem extends javax.swing.JFrame {
             }
         } catch (SQLException e) {
 
-            System.out.println("Issue with DB Connection. while inserting new store.");
+            System.out.println("Issue with DB Connection. while inserting new store to the DB.");
 
         } finally {
 
