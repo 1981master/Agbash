@@ -121,7 +121,7 @@ public class MainSystem extends javax.swing.JFrame {
                     int row = e.getFirstRow();
                     int column = e.getColumn();
                     DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-
+                            
                     int itemId = (Integer) model.getValueAt(row, 0); // Get ITEMID
                     String newValue = model.getValueAt(row, column).toString(); // Get new value
                     if(column > 1 || column <= 9){
@@ -1063,7 +1063,6 @@ public class MainSystem extends javax.swing.JFrame {
             p.setString(1, storeName);
             p.setString(2, "");//inserting empty stirng for store location.
 
-            // Execute the insert
             int affectedRows = p.executeUpdate();
 
             if (affectedRows > 0) {
@@ -1071,7 +1070,6 @@ public class MainSystem extends javax.swing.JFrame {
                 System.out.println("Successfully inserted new Store: " + storeName);
                 jTextField10.setText("");
                 populateStoreComboBox();
-                //jComboBox1.setSelectedItem(storeName);
                 this.setSpecificStore(storeName);
 
             } else {
@@ -1079,7 +1077,7 @@ public class MainSystem extends javax.swing.JFrame {
             }
         } catch (SQLException e) {
 
-            System.out.println("Issue with DB Connection. while inserting new store.");
+            System.out.println("Issue with DB Connection. while inserting new store to the DB.");
 
         } finally {
 
