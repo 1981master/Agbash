@@ -9,6 +9,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
         <exec.mainClass>com.agbash.agbash1.Agbash1</exec.mainClass>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
    <dependencies> 
         <dependency>
@@ -55,12 +57,28 @@
         </dependency>
 
 
-
-
-
-
-
-
-
     </dependencies> 
+    
+        <build>
+        <plugins>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <phase>package</phase> <!-- Execute during the package phase -->
+                    </execution>
+                </executions>
+                <configuration>
+                    <mainClass>${exec.mainClass}</mainClass>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
 </project>
